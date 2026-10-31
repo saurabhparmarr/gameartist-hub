@@ -18,10 +18,29 @@ import SavedArtists from "./pages/SavedArtists.jsx";
 import Studios from "./pages/Studios.jsx";
 import StudioDashboard from "./pages/StudioDashboard.jsx";
 import StudioProjects from "./pages/StudioProjects.jsx";
+import AdminRoute from "./components/AdminRoute.jsx";
+import AdminLayout from "./components/AdminLayout.jsx";
+import AdminLogin from "./pages/AdminLogin.jsx";
+import AdminDashboard from "./pages/AdminDashboard.jsx";
+import AdminUsers from "./pages/AdminUsers.jsx";
+import AdminArtists from "./pages/AdminArtists.jsx";
+import AdminStudios from "./pages/AdminStudios.jsx";
+import AdminProjects from "./pages/AdminProjects.jsx";
 
 function App() {
   return (
     <Routes>
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route element={<AdminRoute />}>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<AdminDashboard />} />
+          <Route path="users" element={<AdminUsers />} />
+          <Route path="artists" element={<AdminArtists />} />
+          <Route path="studios" element={<AdminStudios />} />
+          <Route path="projects" element={<AdminProjects />} />
+        </Route>
+      </Route>
       <Route element={<MainLayout />}>
         <Route path="/" element={<Home />} />
         <Route path="/artists" element={<Artists />} />

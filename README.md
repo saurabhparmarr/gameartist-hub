@@ -51,32 +51,26 @@ MONGODB_URI=mongodb://127.0.0.1:27017/medisync
 JWT_SECRET=replace_with_a_long_random_secret
 JWT_EXPIRES_IN=7d
 CORS_ORIGINS=http://localhost:5173
-Deployment
-Live deployment links
-- Frontend (Vercel): https://gameartist-hub-wl76.vercel.app
-- Backend service (Render): https://gameartist-hub.onrender.com
-- API base URL: https://gameartist-hub.onrender.com/api/v1
-Vercel frontend configuration
-Deploy the React app from the client/ directory on Vercel. Use the Vite preset, npm run build, and dist as the output directory.
-In Vercel → Project Settings → Environment Variables, set this variable for Production:
-VITE_API_URL=https://gameartist-hub.onrender.com/api/v1
-The value must use HTTPS and end in /api/v1. After changing it, redeploy the frontend. The Vercel rewrite in client/vercel.json supports direct navigation and refreshes on React Router pages.
-Render backend configuration
-Deploy the Express API as a separate Node.js web service. Configure the service root directory as server/ and the start command as npm start. Set these environment variables in Render (use your own private values for secrets):
-NODE_ENV=production
-MONGODB_URI=<your-private-mongodb-atlas-connection-string>
-JWT_SECRET=<your-long-random-private-secret>
-CORS_ORIGINS=https://gameartist-hub-wl76.vercel.app
-CORS_ORIGINS must be the exact frontend origin only: do not add /api/v1, a trailing route, or a localhost URL for the deployed frontend. If local development is also needed, add http://localhost:5173 only if the server supports comma-separated origins. Set PORT only if required by the hosting provider; the service uses the provider's port when supplied.
-After changing Render environment variables, save them and trigger a redeploy. Never commit .env files, database credentials, JWT secrets, or demo passwords to GitHub.
-API conventions
-Base URL: http://localhost:5050/api/v1
-Successful JSON responses have statusCode, success, message, and data. Errors have success: false and a message. Protected endpoints require Authorization: Bearer <JWT>. In Postman, choose Authorization → Bearer Token and paste the token returned by login.
-Authentication
-Method	URL	Access	Purpose
-POST	/api/v1/auth/register	Public	Register an artist or studio
-POST	/api/v1/auth/login	Public	Verify credentials and get a JWT
+```
 
+## Deployment
+
+Deploy the React app from the `client/` directory on Vercel. Use the Vite preset, `npm run build`, and `dist` as the output directory. Set `VITE_API_URL` in Vercel's Production environment to the backend's HTTPS API base URL ending in `/api/v1`; production builds fail rather than silently embedding a localhost URL. The Vercel rewrite in `client/vercel.json` supports direct navigation and refreshes on React Router pages.
+
+Deploy the Express API as a separate Node.js web service (the server currently starts with `app.listen`, so it is not a Vercel serverless function). Configure its start command as `npm start` with `server/` as the root, and set `NODE_ENV=production`, `MONGODB_URI` for the Atlas `medisync` database, a private `JWT_SECRET`, and `CORS_ORIGINS` to the exact Vercel frontend origin. Set `PORT` only if required by the hosting provider; the service uses the provider's port when supplied.
+
+## API conventions
+
+Base URL: `http://localhost:5050/api/v1`
+
+Successful JSON responses have `statusCode`, `success`, `message`, and `data`. Errors have `success: false` and a `message`. Protected endpoints require `Authorization: Bearer <JWT>`. In Postman, choose **Authorization → Bearer Token** and paste the token returned by login.
+
+## Authentication
+
+| Method | URL | Access | Purpose |
+|---|---|---|---|
+| POST | `/api/v1/auth/register` | Public | Register an artist or studio |
+| POST | `/api/v1/auth/login` | Public | Verify credentials and get a JWT |
 
 Register body:
 {

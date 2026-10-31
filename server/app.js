@@ -7,6 +7,7 @@ import portfolioRoutes from "./routes/portfolioRoutes.js";
 import projectRoutes from "./routes/projectRoutes.js";
 import savedArtistRoutes from "./routes/savedArtistRoutes.js";
 import messageRoutes from "./routes/messageRoutes.js";
+import adminRoutes from "./routes/adminRoutes.js";
 import errorMiddleware from "./middleware/errorMiddleware.js";
 
 const app = express();
@@ -37,6 +38,7 @@ app.use("/api/v1/portfolio", portfolioRoutes);
 app.use("/api/v1/projects", projectRoutes);
 app.use("/api/v1/saved-artists", savedArtistRoutes);
 app.use("/api/v1/messages", messageRoutes);
+app.use("/api/v1/admin", adminRoutes);
 
 // Send unknown routes through the same JSON error handler.
 app.use((req, res, next) => {

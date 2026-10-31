@@ -15,7 +15,7 @@ function readSavedSession() {
       typeof session.user.id === "string" &&
       typeof session.user.name === "string" &&
       typeof session.user.email === "string" &&
-      ["artist", "studio"].includes(session.user.role);
+      ["artist", "studio", "admin"].includes(session.user.role);
 
     if (typeof session.token === "string" && session.token && validUser) {
       return { token: session.token, user: session.user };

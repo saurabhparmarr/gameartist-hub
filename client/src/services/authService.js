@@ -6,13 +6,14 @@ function isSafeUser(user) {
     typeof user.id === "string" &&
     typeof user.name === "string" &&
     typeof user.email === "string" &&
-    ["artist", "studio"].includes(user.role)
+    ["artist", "studio", "admin"].includes(user.role)
   );
 }
 
 export function getDashboardPath(role) {
   if (role === "artist") return "/artist/dashboard";
   if (role === "studio") return "/studio/dashboard";
+  if (role === "admin") return "/admin/dashboard";
   throw new Error("The account has an unrecognized role.");
 }
 

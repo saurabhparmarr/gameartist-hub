@@ -11,6 +11,7 @@ const getSafeUser = (user) => ({
   name: user.name,
   email: user.email,
   role: user.role,
+  isActive: user.isActive !== false,
   createdAt: user.createdAt,
 });
 
@@ -113,6 +114,13 @@ export const login = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
+      });
+    }
+
+    if (user.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: "This account has been disabled",
       });
     }
 

@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import User from "../models/User.js";
 
-const authMiddleware = (req, res, next) => {
+const authMiddleware = async (req, res, next) => {
   const authorization = req.headers.authorization;
 
   if (!authorization?.startsWith("Bearer ")) {
@@ -18,23 +20,50 @@ const authMiddleware = (req, res, next) => {
     });
   }
 
+  let decoded;
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    if (typeof decoded === "string" || !decoded.id || !decoded.role) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid or expired authentication token",
-      });
-    }
-
-    req.user = { id: decoded.id, role: decoded.role };
-    return next();
+    decoded = jwt.verify(token, process.env.JWT_SECRET);
   } catch {
     return res.status(401).json({
       success: false,
       message: "Invalid or expired authentication token",
     });
+  }
+
+  if (
+    typeof decoded === "string" ||
+    !mongoose.isObjectIdOrHexString(decoded.id) ||
+    !["artist", "studio", "admin"].includes(decoded.role)
+  ) {
+    return res.status(401).json({
+      success: false,
+      message: "Invalid or expired authentication token",
+    });
+  }
+
+  try {
+    const user = await User.findById(decoded.id).select("_id role isActive");
+    if (!user || user.role !== decoded.role) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid or expired authentication token",
+      });
+    }
+    if (user.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: "This account has been disabled",
+      });
+    }
+
+    req.user = {
+      id: user._id.toString(),
+      role: user.role,
+      isActive: user.isActive !== false,
+    };
+    return next();
+  } catch (error) {
+    return next(error);
   }
 };
 

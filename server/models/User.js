@@ -22,8 +22,12 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ["artist", "studio"],
+      enum: ["artist", "studio", "admin"],
       default: "artist",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true },
