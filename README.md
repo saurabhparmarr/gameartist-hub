@@ -6,7 +6,7 @@
 
 | Service | Link |
 |---|---|
-| Frontend | https://REPLACE-WITH-FINAL-VERCEL-URL |
+| Frontend | https://gameartist-hub-wl76.vercel.app |
 | API | API routes use `/api/v1`; the deployed base URL is supplied through `VITE_API_URL`. No production API URL is defined in repository configuration. |
 
 On free-tier hosting, the API may respond slowly to its first request after a period of inactivity.
