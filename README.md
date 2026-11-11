@@ -1,209 +1,238 @@
-GameArtist Hub
-Live Links
-- Frontend: https://gameartist-hub-wl76.vercel.app
-- Backend service: https://gameartist-hub.onrender.com
-- API base URL: https://gameartist-hub.onrender.com/api/v1
-- GitHub repository: https://github.com/saurabhparmarr/gameartist-hub
-GameArtist Hub connects indie game studios with the artists who bring their worlds to life.
-Backend
-A beginner-friendly REST API for game artists and studios. Artists can create profiles and portfolios; studios can publish projects and save artists; authenticated users can message one another.
-Frontend
-The React frontend lives in client/. It uses Vite, React Router, Tailwind CSS v4, and the backend APIs for authentication, artist profiles and portfolios, projects, saved artists, and messaging. Artist and studio dashboards are role-protected. Artists can edit their own profile and portfolio; studios can manage their open projects and saved artists.
+# GameArtist Hub
+
+GameArtist Hub is a web application for discovering game artists, showcasing portfolios, publishing studio project listings, saving artists, and communicating through direct messages. It provides separate workflows for artists and studios, plus a protected administration area.
+
+## Documentation
+
+- [Admin panel guide](docs/admin-panel.md)
+- [Client handover guide](docs/client-handover.md)
+- [API overview](#api-overview)
+- [Local setup](#local-development)
+- [Deployment guidance](#deployment-guidance)
+
+## Project status and links
+
+The following frontend addresses were checked on **November 11, 2026**. Both returned the GameArtist Hub page with the same title and asset references. That confirms they were reachable, but does **not** establish which is the canonical production domain:
+
+- [gameartist-hub.vercel.app](https://gameartist-hub.vercel.app)
+- [gameartist-hub-wl76.vercel.app](https://gameartist-hub-wl76.vercel.app)
+
+Please confirm the primary domain in the Vercel project before treating either address as the official production link. The Render dashboard and deployment configuration were not inspected.
+
+The backend URL referenced by the repository, `https://gameartist-hub.onrender.com`, returned HTTP 200 for `/` and `/ready` when checked on the same date. This is a point-in-time reachability check, not verification of the hosting configuration, database identity, or a full end-to-end production flow.
+
+- Repository: [saurabhparmarr/gameartist-hub](https://github.com/saurabhparmarr/gameartist-hub)
+- Screenshots: none are checked into this repository yet.
+
+## What the application does
+
+### Artist workflows
+
+- Register and sign in as an artist.
+- Create and edit an artist profile with biography, skills, experience, location, profile image URL, and software/tool information.
+- Browse open projects and discover other public artists.
+- Create, update, list, and delete portfolio items.
+- Save profile and portfolio image URLs; file uploads are not implemented.
+- Send and receive private, request/response messages.
+- Use an artist dashboard to manage profile and portfolio information.
+
+### Studio workflows
+
+- Register and sign in as a studio.
+- Create and update a studio profile during registration; the current UI does not provide a complete studio-profile editing workflow.
+- Create, list, update, and delete the studio's own projects.
+- Browse and save artists, then manage the studio's saved-artist list.
+- Message artists.
+
+### Admin workflows
+
+- Sign in using a provisioned admin account; public registration cannot create admins.
+- View database-backed user/project totals and recent registrations/projects.
+- Search and paginate artist, studio, user, and project lists.
+- Disable or reactivate artist/studio accounts.
+- Remove projects.
+- Inspect pending audit records and their read-only reconciliation assessment.
+
+The admin API is protected independently of the frontend route guard. See the [admin panel guide](docs/admin-panel.md) for access rules, available endpoints, audit behavior, and limitations.
+
+## Technology
+
+| Area | Technologies |
+|---|---|
+| Frontend | React, React Router, Vite, Tailwind CSS v4, Axios |
+| Backend | Node.js, Express 5, JavaScript ES modules |
+| Database | MongoDB, Mongoose |
+| Authentication | JWT bearer tokens, bcryptjs password hashing |
+| Tests | Vitest, Testing Library, Node.js test runner, Supertest, MongoMemoryServer |
+| Hosting model | Frontend and API are separate deployments; the repository describes Vercel and Render respectively, but their dashboard settings have not been verified here |
+
+## Architecture and repository layout
+
+```text
+.
+├── client/
+│   ├── public/                 # Static frontend assets
+│   ├── src/
+│   │   ├── components/         # Shared UI, layouts, and route guards
+│   │   ├── context/            # Authentication context
+│   │   ├── pages/              # Artist, studio, public, and admin pages
+│   │   └── services/           # HTTP/API clients
+│   ├── vercel.json             # SPA route rewrite
+│   └── package.json
+├── server/
+│   ├── config/                 # MongoDB connection
+│   ├── controllers/            # Request handlers
+│   ├── middleware/             # Authentication, authorization, errors
+│   ├── models/                 # Mongoose schemas and indexes
+│   ├── routes/                 # Versioned API route modules
+│   ├── scripts/                # Admin account provisioning
+│   ├── seed/                   # Optional demo-data script
+│   ├── tests/                  # Backend tests and isolated DB setup
+│   ├── utils/                  # API response and security helpers
+│   ├── app.js                  # Express application and middleware
+│   ├── server.js               # Environment validation, DB startup, listener
+│   └── package.json
+└── .github/workflows/ci.yml    # CI tests, audits, and frontend build
+```
+
+The browser calls the Express API at a configurable `/api/v1` base URL. Express authenticates protected requests with a JWT, loads the current user from MongoDB, and enforces role and ownership checks in middleware/controllers. MongoDB stores users, profiles, portfolios, projects, saved artists, messages, and admin audit records.
+
+## Local development
+
+### Requirements
+
+- Node.js 22 is used in the checked-in CI workflow. Mongoose 9 requires a supported modern Node.js runtime; use a currently supported Node.js release.
+- npm.
+- A local MongoDB instance, or another development database you are authorized to use. Do not point local scripts at production.
+
+### Configure the backend
+
 In PowerShell:
-cd C:\gameartist-hub\client
-npm install
-npm run dev
-Open the local URL printed by Vite (usually http://localhost:5173). To create a production build, run npm run build from client/.
-Set VITE_API_URL in client/.env to the backend API base URL. Copy client/.env.example to client/.env and adjust the URL if needed. The frontend stores the login token and safe user details in localStorage so a refresh keeps the session. This is convenient for a learning project, but JavaScript running through an XSS vulnerability can read the token. A production app should consider an HttpOnly, Secure, SameSite cookie-based session. Passwords are not stored in the browser.
-Technology stack
-- Node.js and Express.js
-- MongoDB and Mongoose
-- JavaScript ES Modules
-- bcryptjs for password hashing
-- jsonwebtoken for authentication
-Folder structure
-server/
-├── config/db.js
-├── controllers/
-├── middleware/
-├── models/
-├── routes/
-├── utils/ApiResponse.js
-├── app.js
-├── server.js
-├── .env.example
-└── package.json
-Controllers contain endpoint logic, models describe MongoDB documents, routes connect URLs to controllers, and middleware handles shared tasks like authentication and errors.
-Installation and startup
-Requirements: Node.js, npm, and a running MongoDB instance.
-In PowerShell:
+
+```powershell
 cd C:\gameartist-hub\server
-npm install
-npm run dev
-For a normal Node.js start without nodemon, use npm start. The server defaults to http://localhost:5000.
-
-## Automated tests
-
-The backend tests use an isolated in-memory MongoDB instance and do not read `MONGODB_URI`. Run them from `server/`:
-
-```powershell
-npm test
-```
-
-GitHub Actions runs backend and frontend tests, frontend production build, and dependency audits on pushes and pull requests. The CI build uses a reserved `.invalid` HTTPS API URL only to satisfy build-time validation; it does not point at or modify a deployed service.
-
-The backend's development-only `nodemon` dependency is pinned to the patched `minimatch` 11 line using an npm override. Keep the override when updating nodemon and verify it with `npm ls minimatch nodemon --all` and `npm audit`; do not apply forced major-version audit fixes.
-
-Message history indexes declared in the Mongoose model include participant IDs, creation time, and an `_id` tie-breaker for stable bounded reads. Production automatic index creation remains disabled. Review and apply any required index changes through a separately scheduled, staged database maintenance process; tests use an isolated in-memory MongoDB only.
-
-Run the frontend component and route tests from `client/`:
-
-```powershell
-npm test
-```
-
-The artist directory response includes up to three recent portfolio previews per result, so listing cards do not make a separate portfolio request for every artist.
-
-Administrative account-status changes and project removals first persist a `pending` audit record, then perform the action, and finally mark the record `completed` (or `failed` when the action itself fails). If the completion write fails, the operation returns an error and the pending audit record remains an explicit reconciliation signal; the operation may already have succeeded. Review pending records in the `adminauditlogs` collection before retrying an action. This intent/outcome flow does not depend on MongoDB transaction support, which was not assumed or verified for the deployed database.
-
-Admins can review pending audit actions without changing them through `GET /api/v1/admin/audit-logs/pending?page=1&limit=20`. This protected, read-only endpoint reports whether the target's observed state matches the requested action; it never retries, completes, or removes an action. Treat the assessment as a reconciliation clue, not proof of which process changed the target. Confirm the target and surrounding activity before taking any manual action. Results are ordered oldest-first and capped at 100 records per page.
-
-Messaging endpoints support cursor pagination: `GET /api/v1/messages?limit=20` returns conversation summaries with a `nextCursor`, and `GET /api/v1/messages/:userId?limit=30` returns the latest message page in chronological display order. Send the summary cursor's `beforeCreatedAt` and `beforeUserId` values, or the history cursor's `beforeCreatedAt` and `beforeId` values, to fetch the next older page. Limits are capped at 50. For compatibility during independent frontend/backend deployments, requests with no pagination parameters retain the legacy complete-array response shape; the frontend also accepts those arrays when pagination metadata is absent. Thus, an older frontend can continue retrieving complete history from a newer backend, while a newer frontend can read responses from an older backend (which ignores pagination parameters). Older backends cannot provide cursor-based load-more behavior, so the complete returned arrays are displayed without pagination controls. The Messages page preserves unread-on-open behavior.
-
-Health checks have distinct purposes. `GET /` is a liveness check and confirms only that the HTTP process responds. `GET /ready` pings MongoDB and returns HTTP 200 only while the database is reachable; otherwise it returns HTTP 503. Existing hosting health-check configuration has not been changed. The deployment operator should explicitly choose the appropriate path for each probe during a separately approved staging exercise.
-
-Environment variables
-The backend reads variables from server/.env. Copy the example for a new setup:
 Copy-Item .env.example .env
-Set a long, private, randomly generated JWT_SECRET in .env. Never share or commit that file. The checked-in .env.example contains placeholders, not a real secret. The example MongoDB URI uses the medisync database name, matching the seed script.
-To seed demo accounts, set SEED_DEMO_PASSWORD in server/.env to a private password of at least 8 characters. All seeded demo accounts use this password. Keep it local and do not commit it.
-PORT=5050
-MONGODB_URI=mongodb://127.0.0.1:27017/medisync
-JWT_SECRET=replace_with_a_long_random_secret
-JWT_EXPIRES_IN=7d
-CORS_ORIGINS=http://localhost:5173
 ```
 
-## Deployment
+Edit `server/.env` for your local setup. Use a private random `JWT_SECRET` and a database URI that points only to a local/development database. The example uses port `5050`, a local MongoDB database named `medisync`, and a local frontend origin.
 
-Deploy the React app from the `client/` directory on Vercel. Use the Vite preset, `npm run build`, and `dist` as the output directory. Set `VITE_API_URL` in Vercel's Production environment to the backend's HTTPS API base URL ending in `/api/v1`; production builds fail rather than silently embedding a localhost URL. The Vercel rewrite in `client/vercel.json` supports direct navigation and refreshes on React Router pages.
+```powershell
+npm ci
+npm run dev
+```
 
-Deploy the Express API as a separate Node.js web service (the server currently starts with `app.listen`, so it is not a Vercel serverless function). Configure its start command as `npm start` with `server/` as the root, and set `NODE_ENV=production`, `MONGODB_URI` for the Atlas `medisync` database, a private `JWT_SECRET`, and `CORS_ORIGINS` to the exact Vercel frontend origin. Set `PORT` only if required by the hosting provider; the service uses the provider's port when supplied.
+The backend loads `.env` when started from `server/`. Its default port in `server.js` is `5000`; the checked-in example sets `PORT=5050`.
 
-## API conventions
+### Configure and run the frontend
 
-Base URL: `http://localhost:5050/api/v1`
+In a second terminal:
 
-Successful JSON responses have `statusCode`, `success`, `message`, and `data`. Errors have `success: false` and a `message`. Protected endpoints require `Authorization: Bearer <JWT>`. In Postman, choose **Authorization → Bearer Token** and paste the token returned by login.
+```powershell
+cd C:\gameartist-hub\client
+Copy-Item .env.example .env
+npm ci
+npm run dev
+```
 
-## Authentication
+The frontend example points to `http://localhost:5050/api/v1`, matching the backend example's port. Vite prints its local URL (normally `http://localhost:5173`). If you change the API port or host, update both `PORT` and `VITE_API_URL` as appropriate.
 
-| Method | URL | Access | Purpose |
-|---|---|---|---|
-| POST | `/api/v1/auth/register` | Public | Register an artist or studio |
-| POST | `/api/v1/auth/login` | Public | Verify credentials and get a JWT |
+### Optional demo data
 
-Register body:
-{
-  "name": "Asha Artist",
-  "email": "asha@example.com",
-  "password": "securepass123",
-  "role": "artist"
-}
-role is optional and defaults to artist; accepted roles are artist and studio. Studio registration also creates a studio profile. Success returns 201 and safe user data without the password. Duplicate email returns 409; invalid input returns 400.
-Login body:
-{
-  "email": "asha@example.com",
-  "password": "securepass123"
-}
-Success returns 200, data.token, and safe user data. Incorrect credentials return 401.
-Artist profile APIs
-Method	URL	Access	Purpose
-GET	/api/v1/artists	Public	List/search profiles
-GET	/api/v1/artists/:id	Public	Get a profile by ArtistProfile ID
-POST	/api/v1/artists/profile	Artist JWT	Create your own profile
-PUT	/api/v1/artists/profile	Artist JWT	Update your own profile
+`server/seed/seedDatabase.js` can create or refresh predefined demo accounts and related records. It connects to the configured MongoDB database and writes data unless `SEED_DRY_RUN=true`; it can update existing demo account password hashes. It refuses to run against a database other than `medisync` unless explicitly confirmed. Do not run it against production or an unapproved database. No seed script is run as part of normal startup or tests.
 
+### Provision an administrator
 
-List query parameters: name, skill, location, page (default 1), and limit (default 10, maximum 100). Example:
-GET /api/v1/artists?name=asha&skill=3D&location=Toronto&page=1&limit=10
-Create profile body:
-{
-  "bio": "I create stylized 3D game environments.",
-  "skills": ["3D modeling", "Environment art"],
-  "experience": 2,
-  "location": "Toronto",
-  "profileImage": "https://example.com/asha.png",
-  "software": ["Blender", "Unreal Engine"]
-}
-Update profile body may contain one or more of the same fields. The profile is linked to the logged-in artist; do not send a user ID. Creating a second profile returns 409. Studio accounts receive 403.
-Portfolio APIs
-Method	URL	Access	Purpose
-POST	/api/v1/portfolio	Artist JWT	Create a portfolio item
-GET	/api/v1/portfolio	Public	List/filter portfolio items
-GET	/api/v1/portfolio/:id	Public	Get an item by ID
-PUT	/api/v1/portfolio/:id	Owning artist JWT	Update your item
-DELETE	/api/v1/portfolio/:id	Owning artist JWT	Delete your item
+Admin registration is not available through the public registration API. To create an admin in an explicitly chosen development or approved database, configure that database URI in the backend environment, then run `npm run admin:create` from `server/`. The script asks for the name and email and prompts for a hidden password (minimum 12 characters). It creates no account if the email already exists. Review the [admin panel guide](docs/admin-panel.md) before provisioning.
 
+## API overview
 
-Create body:
-{
-  "title": "Forest Shrine",
-  "description": "A stylized environment concept.",
-  "category": "3D Environment",
-  "imageUrl": "https://example.com/forest-shrine.png",
-  "tools": ["Blender", "Unreal Engine"]
-}
-title and category are required. Categories: Concept Art, 3D Environment, Character Art, Animation, Other. Update accepts one or more of title, description, category, imageUrl, and tools.
-List query parameters: category, tools, artistId (artist's User ID), page, and limit (maximum 100). Example:
-GET /api/v1/portfolio?category=3D%20Environment&tools=Blender&page=1&limit=10
-Studio project APIs
-Method	URL	Access	Purpose
-POST	/api/v1/projects	Studio JWT	Create a project
-GET	/api/v1/projects	Public	List open projects
-GET	/api/v1/projects/:id	Public	Get a project by ID
-PUT	/api/v1/projects/:id	Owning studio JWT	Update your project
-DELETE	/api/v1/projects/:id	Owning studio JWT	Delete your project
+Local API base URL: `http://localhost:5050/api/v1` when using the checked-in development examples. The production API URL must be configured by the deployment owner; a repository-referenced URL is listed above with its verification limitations.
 
+Successful responses use a JSON envelope containing `success`, `message`, and `data` (and `statusCode`). Error responses use `success: false` and a message. Protected routes require an `Authorization: Bearer <JWT>` header. The API resolves the user from the JWT subject on each request and checks the account's current role and active status.
 
-Create body:
-{
-  "title": "Environment Artist Needed",
-  "description": "Create a stylized forest level for our game.",
-  "skillsRequired": ["Environment art", "Blender"],
-  "budget": 1500
-}
-title and description are required. budget is optional and must be non-negative. status defaults to open; the allowed values are open and closed. Updates accept title, description, skillsRequired, budget, and status. The studio is taken from the JWT, not the request body.
-Project list query parameters: skill, page (default 1), and limit (default 10, maximum 100). Only open projects are listed. A project detail URL can still retrieve a closed project by ID.
-Saved artist APIs
-Method	URL	Access	Purpose
-POST	/api/v1/saved-artists/:artistId	Studio JWT	Save an artist by User ID
-GET	/api/v1/saved-artists	Studio JWT	List this studio's saved artists
-DELETE	/api/v1/saved-artists/:artistId	Studio JWT	Remove an artist from this studio's list
+| Area | Endpoints | Access |
+|---|---|---|
+| Authentication | `POST /auth/register`, `POST /auth/login` | Public; registration accepts artist or studio |
+| Artists | `GET /artists`, `GET /artists/:id` | Public |
+| Artist profile | `POST /artists/profile`, `PUT /artists/profile` | Artist JWT; current account only |
+| Portfolio | `GET /portfolio`, `GET /portfolio/:id` | Public |
+| Portfolio changes | `POST /portfolio`, `PUT /portfolio/:id`, `DELETE /portfolio/:id` | Artist JWT; writes restricted to owner |
+| Projects | `GET /projects`, `GET /projects/:id` | Public |
+| Studio projects | `GET /projects/mine`, `POST /projects`, `PUT /projects/:id`, `DELETE /projects/:id` | Studio JWT; mutations restricted to owner |
+| Saved artists | `GET /saved-artists`, `POST /saved-artists/:artistId`, `DELETE /saved-artists/:artistId` | Studio JWT; own saved list |
+| Messaging | `GET /messages`, `GET /messages/:userId`, `POST /messages/:receiverId` | Any authenticated user; conversation limited to participants |
+| Administration | `/admin/*` (see [endpoint details](docs/admin-panel.md#admin-api)) | Admin JWT |
+| Health | `GET /`, `GET /ready` | Public; liveness and MongoDB readiness respectively |
 
+Artist, portfolio, project, and admin collection endpoints support server-side pagination where implemented. Message conversation summaries and history support cursor pagination (maximum page size 50). Message APIs retain legacy full-array responses when pagination parameters are omitted; the current frontend accepts responses both with and without pagination metadata. This supports independently deployed old/new frontend and backend versions, but an older backend cannot provide the cursor-based load-more experience.
 
-These endpoints do not need a JSON body. Only existing artist accounts can be saved. Saving the same artist twice returns 409. Each studio can only read or remove its own saved records.
-Messaging APIs
-Method	URL	Access	Purpose
-POST	/api/v1/messages/:receiverId	Any logged-in user	Send a message to a User ID
-GET	/api/v1/messages/:userId	Any logged-in user	Read messages exchanged with a User ID
+## Tests and checks
 
+Run each suite from its own package directory:
 
-Send message body:
-{
-  "content": "Hi, I would like to discuss your portfolio."
-}
-The sender is taken from the JWT. You cannot message yourself. Conversation messages are returned oldest-first and only when the authenticated user is one of the participants. Messaging is request/response only; there are no WebSockets or real-time updates.
-Frontend dashboard notes
-The frontend provides role-based routes at /artist/dashboard and /studio/dashboard; the studio workspace also includes /studio/projects, /studio/saved-artists, and authenticated /messages. Project and portfolio mutations are sent to the backend, which remains responsible for checking role and resource ownership.
-The backend does not provide a studio-owned project list (its public project list contains open projects only), project applications, an inbox/conversation list, real-time messaging, or image uploads. The studio project page filters owned projects from the public open-project results; a closed project can still be opened by its known ID. The messaging page discovers contacts from public profiles/open projects and browser-local recent contacts, then loads message history only through the authorized conversation endpoint. Portfolio and profile images must be supplied as URLs.
-Postman testing checklist
-1. Start MongoDB, then run npm run dev from server/. Check the public API with GET http://localhost:5050/api/v1/artists?page=1.
-2. Register an artist using POST /api/v1/auth/register; log in with POST /api/v1/auth/login and save the returned token in Postman.
-3. Use that token to create an artist profile and portfolio item. Test their public list/detail endpoints, filters, updates, and portfolio deletion.
-4. Register and log in a second artist. Try updating/deleting the first artist's portfolio item; expect 403.
-5. Register and log in a studio. Confirm it gets 403 for artist-only operations.
-6. With the studio token, create a project. List open projects, filter by skill, get project details, update project status to closed, verify it no longer appears in the list, then delete it.
-7. With the studio token, save the first artist using their User ID. List saved artists, try saving them again (expect 409), then remove them.
-8. Send a message from the artist to the studio and another from the studio to the artist. Fetch both conversations and confirm messages are oldest-first. Try a missing receiver, invalid ID, and self-message.
-9. For protected endpoints, remove the Bearer token and confirm the response is 401. Try invalid IDs (expect 400) and IDs for missing records (expect 404).
+```powershell
+cd C:\gameartist-hub\server
+npm test
+npm audit --audit-level=moderate
+
+cd C:\gameartist-hub\client
+npm test
+npm audit --audit-level=moderate
+$env:VITE_API_URL = "https://api.example.invalid/api/v1"
+npm run build
+```
+
+The backend test setup creates an isolated MongoMemoryServer database. The frontend build requires an absolute HTTPS `VITE_API_URL` ending in `/api/v1`; the reserved `.invalid` URL above is only a build-time placeholder, not a working API. GitHub Actions runs tests, dependency audits, and the frontend build on pushes and pull requests. A local pass does not establish that a remote CI run or staging deployment passed.
+
+## Deployment guidance
+
+The instructions below describe the repository's deployment shape, not verified account settings. Confirm current Vercel/Render dashboards, branch triggers, domains, and environment values with the project owner before deployment.
+
+### Frontend on Vercel
+
+- Configure the project root as `client/`.
+- Use `npm ci` for install, `npm run build` for build, and `dist` as the output directory.
+- Set `VITE_API_URL` to the approved HTTPS backend API base URL ending in `/api/v1`.
+- `client/vercel.json` rewrites SPA paths to `/`, supporting client-side routes and refreshes.
+- Confirm which of the two reachable frontend candidates above is the canonical production domain.
+
+### Backend on Render
+
+- Configure the service root as `server/` and start command as `npm start`.
+- Set `NODE_ENV=production`, `MONGODB_URI`, `JWT_SECRET`, and `CORS_ORIGINS` in the hosting dashboard. `CORS_ORIGINS` must contain the exact approved frontend origin; production startup rejects a missing allowed-origin setting.
+- The service listens on `PORT` supplied by the platform (with a local default of `5000`).
+- Choose health-check behavior intentionally: `/` checks process liveness; `/ready` requires a successful MongoDB ping.
+- `autoIndex` is disabled when `NODE_ENV=production`. Review schema index changes and handle any required database index work as a separately approved maintenance operation; no production migration or index operation is documented as already completed.
+
+## Current limitations and future work
+
+### Current limitations
+
+- The `/studios` frontend page is a studio-focused marketing/landing page; there is no public studio directory API.
+- Studio project management is implemented, but public project discovery returns open projects. There is no project-application workflow.
+- Messaging uses HTTP requests; there are no WebSockets, push notifications, or real-time delivery.
+- Artist profile and portfolio images are URL fields; the application does not upload or host image files.
+- The frontend stores the JWT and safe user data in `localStorage`. This is convenient but exposes the token to JavaScript executing in the page; an HttpOnly, Secure, SameSite cookie-based design would require a separate security review and implementation.
+- Admin pending-audit reconciliation is read-only. There is no endpoint to replay, complete, or clear a pending record. Some database failures can leave a pending record after the associated action already succeeded; inspect target state before manual intervention.
+- The frontend canonical production hostname and hosting dashboard settings require confirmation by the deployment owner.
+
+### Possible future improvements
+
+- Confirm and document the canonical production domain and an approved staging environment.
+- Evaluate a secure cookie-based session flow and add appropriate CSRF protections if adopted.
+- Add real-time messaging only with a reviewed infrastructure and authorization design.
+- Define an image storage/upload service and moderation policy before implementing uploads.
+- Add a public studio discovery workflow and project applications if those are product requirements.
+- Expand automated browser-based end-to-end tests and performance monitoring.
+
+## Contributing
+
+1. Open an issue describing the proposed change or bug.
+2. Keep changes scoped and preserve existing artist, studio, and admin authorization rules.
+3. Add or update tests for behavior changes.
+4. Run both test suites, dependency audits, the frontend build, and `git diff --check`.
+5. Submit a pull request with a concise summary, verification evidence, and any deployment/configuration implications.
+
+## Contact
+
+Use the [GitHub repository](https://github.com/saurabhparmarr/gameartist-hub) to report issues or request project information. No separate maintainer contact address is published in this repository.
