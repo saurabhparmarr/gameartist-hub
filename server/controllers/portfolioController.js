@@ -149,7 +149,7 @@ export const getPortfolioItems = async (req, res, next) => {
         message: "Invalid artist ID",
       });
     }
-    filters.artist = req.query.artistId;
+    filters.artist = new mongoose.Types.ObjectId(req.query.artistId);
   }
 
   try {

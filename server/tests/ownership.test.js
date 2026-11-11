@@ -168,6 +168,12 @@ test("Resource ownership permissions", async (t) => {
         assert.equal(response.body.data.pagination.total, 0);
         assert.equal(response.body.data.portfolios.length, 0);
       });
+    const activeArtistPortfolio = await request(app)
+      .get("/api/v1/portfolio")
+      .query({ artistId: firstArtist.id })
+      .expect(200);
+    assert.equal(activeArtistPortfolio.body.data.pagination.total, 1);
+    assert.equal(activeArtistPortfolio.body.data.portfolios[0].title, "Environment preview");
     await request(app)
       .get(`/api/v1/portfolio/${disabledPortfolio.id}`)
       .expect(404);
