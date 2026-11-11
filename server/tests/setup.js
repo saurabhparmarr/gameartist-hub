@@ -5,7 +5,7 @@ let mongoServer;
 
 export const setupTestDB = async () => {
   mongoServer = await MongoMemoryServer.create();
-  await mongoose.connect(mongoServer.getUri("medisync"));
+  await mongoose.connect(mongoServer.getUri("gameartisthub"));
 };
 
 export const teardownTestDB = async () => {
