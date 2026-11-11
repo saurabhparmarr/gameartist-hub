@@ -14,7 +14,7 @@ import SavedArtist from "../models/SavedArtist.js";
 import Studio from "../models/Studio.js";
 import User from "../models/User.js";
 
-const EXPECTED_DATABASE = "medisync";
+const EXPECTED_DATABASE = "gameartisthub";
 const DEMO_EMAIL_DOMAIN = "demo.gameartisthub.local";
 const DEMO_PASSWORD = process.env.SEED_DEMO_PASSWORD;
 const DRY_RUN = process.env.SEED_DRY_RUN === "true";
