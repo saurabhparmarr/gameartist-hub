@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Portfolio from "../models/Portfolio.js";
+import User from "../models/User.js";
 import ApiResponse from "../utils/ApiResponse.js";
 
 const categories = [
@@ -152,14 +153,48 @@ export const getPortfolioItems = async (req, res, next) => {
   }
 
   try {
-    const [portfolios, total] = await Promise.all([
-      Portfolio.find(filters)
-        .populate("artist", "name")
-        .sort({ createdAt: -1 })
-        .skip(pagination.skip)
-        .limit(pagination.limit),
-      Portfolio.countDocuments(filters),
+    const [result] = await Portfolio.aggregate([
+      { $match: filters },
+      {
+        $lookup: {
+          from: User.collection.name,
+          localField: "artist",
+          foreignField: "_id",
+          as: "artist",
+        },
+      },
+      { $unwind: "$artist" },
+      {
+        $match: {
+          "artist.role": "artist",
+          "artist.isActive": { $ne: false },
+        },
+      },
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          portfolios: [
+            { $sort: { createdAt: -1, _id: -1 } },
+            { $skip: pagination.skip },
+            { $limit: pagination.limit },
+            {
+              $project: {
+                title: 1,
+                description: 1,
+                category: 1,
+                imageUrl: 1,
+                tools: 1,
+                createdAt: 1,
+                updatedAt: 1,
+                artist: { _id: "$artist._id", name: "$artist.name" },
+              },
+            },
+          ],
+        },
+      },
     ]);
+    const portfolios = result?.portfolios || [];
+    const total = result?.metadata[0]?.total || 0;
 
     return res.status(200).json(
       new ApiResponse(
@@ -192,9 +227,14 @@ export const getPortfolioItemById = async (req, res, next) => {
   try {
     const portfolio = await Portfolio.findById(req.params.id).populate(
       "artist",
-      "name",
+      "name role isActive",
     );
-    if (!portfolio) {
+    if (
+      !portfolio ||
+      !portfolio.artist ||
+      portfolio.artist.role !== "artist" ||
+      portfolio.artist.isActive === false
+    ) {
       return res.status(404).json({
         success: false,
         message: "Portfolio item not found",

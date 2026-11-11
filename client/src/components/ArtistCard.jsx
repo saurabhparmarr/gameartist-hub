@@ -1,41 +1,16 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ArrowUpRight, Image, MapPin, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { getArtistPortfolio, getRequestErrorMessage } from "../services/artistService.js";
 
 function ArtistCard({ artist, featured = false }) {
   const [showProfile, setShowProfile] = useState(false);
   const [imageFailed, setImageFailed] = useState(false);
-  const [portfolioItems, setPortfolioItems] = useState([]);
-  const [portfolioError, setPortfolioError] = useState("");
-  const [portfolioLoading, setPortfolioLoading] = useState(Boolean(artist.user?._id));
+  const portfolioItems = artist.recentPortfolio || [];
   const name = artist.user?.name || artist.name || "Game artist";
   const specialty = artist.specialty || "Game artist";
   const featuredArtwork = portfolioItems.find((item) => item.imageUrl)?.imageUrl;
   const image = featuredArtwork || artist.profileImage || artist.image || "/images/artwork-placeholder.svg";
   const profileId = artist._id;
-  const artistUserId = artist.user?._id;
-
-  useEffect(() => {
-    if (!artistUserId) return undefined;
-
-    const controller = new AbortController();
-    setPortfolioLoading(true);
-    getArtistPortfolio(artistUserId, controller.signal)
-      .then((items) => setPortfolioItems(items.slice(0, 3)))
-      .catch((error) => {
-        if (!controller.signal.aborted) setPortfolioError(getRequestErrorMessage(error));
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setPortfolioLoading(false);
-      });
-
-    return () => controller.abort();
-  }, [artistUserId]);
-
-  useEffect(() => {
-    setImageFailed(false);
-  }, [portfolioItems]);
 
   const cardContent = (
     <>
@@ -95,10 +70,8 @@ function ArtistCard({ artist, featured = false }) {
               )) : (
                 <span
                   className="artist-card-portfolio-empty"
-                  role={portfolioError ? "alert" : portfolioLoading ? "status" : undefined}
-                  title={portfolioError || undefined}
                 >
-                  {portfolioError ? "Portfolio previews could not be loaded." : portfolioLoading ? "Loading portfolio…" : "No portfolio artwork yet"}
+                  No portfolio artwork yet
                 </span>
               )}
             </div>

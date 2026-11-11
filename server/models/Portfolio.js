@@ -41,6 +41,9 @@ const portfolioSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+portfolioSchema.index({ artist: 1, createdAt: -1, _id: -1 });
+portfolioSchema.index({ createdAt: -1, _id: -1 });
+
 const Portfolio = mongoose.model("Portfolio", portfolioSchema);
 
 export default Portfolio;

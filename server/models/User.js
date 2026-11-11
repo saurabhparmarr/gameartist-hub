@@ -33,6 +33,9 @@ const userSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+userSchema.index({ role: 1, createdAt: -1, _id: -1 });
+userSchema.index({ role: 1, isActive: 1, createdAt: -1, _id: -1 });
+
 const User = mongoose.model("User", userSchema);
 
 export default User;

@@ -715,6 +715,7 @@ h1, h2, h3 { font-family: var(--heading-font); letter-spacing: -0.045em; }
   .conversation-sidebar-heading h2 { margin: 0; font-size: 13px; }
   .conversation-sidebar-heading > span { display: grid; min-width: 21px; height: 21px; place-items: center; border-radius: 20px; background: rgba(167,139,250,.12); color: #c1b2ff; font-size: 8px; }
   .conversation-contact-list { display: grid; gap: 5px; }
+  .conversation-load-more { width: 100%; margin-top: 10px; font-size: 9px; }
   .conversation-contact { display: grid; width: 100%; grid-template-columns: 32px minmax(0,1fr) 14px; align-items: center; gap: 9px; padding: 9px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #aaa8b5; text-align: left; cursor: pointer; }
   .conversation-contact:hover, .conversation-contact-active { border-color: rgba(167,139,250,.16); background: rgba(167,139,250,.08); color: #f0eef7; }
   .conversation-contact > span:nth-child(2) { display: grid; min-width: 0; gap: 4px; }

@@ -42,7 +42,7 @@ const authMiddleware = async (req, res, next) => {
   }
 
   try {
-    const user = await User.findById(decoded.id).select("_id role isActive");
+    const user = await User.findById(decoded.id).select("_id name email role isActive");
     if (!user || user.role !== decoded.role) {
       return res.status(401).json({
         success: false,
@@ -58,6 +58,8 @@ const authMiddleware = async (req, res, next) => {
 
     req.user = {
       id: user._id.toString(),
+      name: user.name,
+      email: user.email,
       role: user.role,
       isActive: user.isActive !== false,
     };

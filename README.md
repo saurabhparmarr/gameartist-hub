@@ -41,6 +41,37 @@ cd C:\gameartist-hub\server
 npm install
 npm run dev
 For a normal Node.js start without nodemon, use npm start. The server defaults to http://localhost:5000.
+
+## Automated tests
+
+The backend tests use an isolated in-memory MongoDB instance and do not read `MONGODB_URI`. Run them from `server/`:
+
+```powershell
+npm test
+```
+
+GitHub Actions runs backend and frontend tests, frontend production build, and dependency audits on pushes and pull requests. The CI build uses a reserved `.invalid` HTTPS API URL only to satisfy build-time validation; it does not point at or modify a deployed service.
+
+The backend's development-only `nodemon` dependency is pinned to the patched `minimatch` 11 line using an npm override. Keep the override when updating nodemon and verify it with `npm ls minimatch nodemon --all` and `npm audit`; do not apply forced major-version audit fixes.
+
+Message history indexes declared in the Mongoose model include participant IDs, creation time, and an `_id` tie-breaker for stable bounded reads. Production automatic index creation remains disabled. Review and apply any required index changes through a separately scheduled, staged database maintenance process; tests use an isolated in-memory MongoDB only.
+
+Run the frontend component and route tests from `client/`:
+
+```powershell
+npm test
+```
+
+The artist directory response includes up to three recent portfolio previews per result, so listing cards do not make a separate portfolio request for every artist.
+
+Administrative account-status changes and project removals first persist a `pending` audit record, then perform the action, and finally mark the record `completed` (or `failed` when the action itself fails). If the completion write fails, the operation returns an error and the pending audit record remains an explicit reconciliation signal; the operation may already have succeeded. Review pending records in the `adminauditlogs` collection before retrying an action. This intent/outcome flow does not depend on MongoDB transaction support, which was not assumed or verified for the deployed database.
+
+Admins can review pending audit actions without changing them through `GET /api/v1/admin/audit-logs/pending?page=1&limit=20`. This protected, read-only endpoint reports whether the target's observed state matches the requested action; it never retries, completes, or removes an action. Treat the assessment as a reconciliation clue, not proof of which process changed the target. Confirm the target and surrounding activity before taking any manual action. Results are ordered oldest-first and capped at 100 records per page.
+
+Messaging endpoints support cursor pagination: `GET /api/v1/messages?limit=20` returns conversation summaries with a `nextCursor`, and `GET /api/v1/messages/:userId?limit=30` returns the latest message page in chronological display order. Send the summary cursor's `beforeCreatedAt` and `beforeUserId` values, or the history cursor's `beforeCreatedAt` and `beforeId` values, to fetch the next older page. Limits are capped at 50. For compatibility during independent frontend/backend deployments, requests with no pagination parameters retain the legacy complete-array response shape; the frontend also accepts those arrays when pagination metadata is absent. Thus, an older frontend can continue retrieving complete history from a newer backend, while a newer frontend can read responses from an older backend (which ignores pagination parameters). Older backends cannot provide cursor-based load-more behavior, so the complete returned arrays are displayed without pagination controls. The Messages page preserves unread-on-open behavior.
+
+Health checks have distinct purposes. `GET /` is a liveness check and confirms only that the HTTP process responds. `GET /ready` pings MongoDB and returns HTTP 200 only while the database is reachable; otherwise it returns HTTP 503. Existing hosting health-check configuration has not been changed. The deployment operator should explicitly choose the appropriate path for each probe during a separately approved staging exercise.
+
 Environment variables
 The backend reads variables from server/.env. Copy the example for a new setup:
 Copy-Item .env.example .env

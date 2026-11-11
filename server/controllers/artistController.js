@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import ArtistProfile from "../models/ArtistProfile.js";
+import Portfolio from "../models/Portfolio.js";
 import User from "../models/User.js";
 import ApiResponse from "../utils/ApiResponse.js";
 
@@ -82,37 +83,95 @@ export const getArtists = async (req, res, next) => {
     });
   }
 
+  const searchFields = ["name", "skill", "location"];
+  const searchValues = {};
+  for (const field of searchFields) {
+    const value = req.query[field];
+    if (value === undefined) continue;
+    if (typeof value !== "string" || value.trim().length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: `${field} must be a string no longer than 100 characters`,
+      });
+    }
+    if (value.trim()) searchValues[field] = value.trim();
+  }
+
   try {
-    const filters = {};
-    if (typeof req.query.skill === "string" && req.query.skill.trim()) {
-      filters.skills = new RegExp(escapeRegex(req.query.skill.trim()), "i");
+    const profileFilter = {};
+    if (searchValues.skill) {
+      profileFilter.skills = new RegExp(escapeRegex(searchValues.skill), "i");
     }
-    if (typeof req.query.location === "string" && req.query.location.trim()) {
-      filters.location = new RegExp(
-        escapeRegex(req.query.location.trim()),
-        "i",
-      );
+    if (searchValues.location) {
+      profileFilter.location = new RegExp(escapeRegex(searchValues.location), "i");
     }
-
-    if (typeof req.query.name === "string" && req.query.name.trim()) {
-      const matchingUsers = await User.find({
-        role: "artist",
-        name: new RegExp(escapeRegex(req.query.name.trim()), "i"),
-      }).select("_id");
-      filters.user = { $in: matchingUsers.map((user) => user._id) };
-    } else {
-      const artistUsers = await User.find({ role: "artist" }).select("_id");
-      filters.user = { $in: artistUsers.map((user) => user._id) };
+    if (searchValues.name) {
+      profileFilter["user.name"] = new RegExp(escapeRegex(searchValues.name), "i");
     }
 
-    const [artists, total] = await Promise.all([
-      ArtistProfile.find(filters)
-        .populate("user", "name")
-        .sort({ createdAt: -1 })
-        .skip(pagination.skip)
-        .limit(pagination.limit),
-      ArtistProfile.countDocuments(filters),
+    const [result] = await ArtistProfile.aggregate([
+      {
+        $lookup: {
+          from: User.collection.name,
+          localField: "user",
+          foreignField: "_id",
+          as: "user",
+        },
+      },
+      { $unwind: "$user" },
+      {
+        $match: {
+          ...profileFilter,
+          "user.role": "artist",
+          "user.isActive": { $ne: false },
+        },
+      },
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          artists: [
+            { $sort: { createdAt: -1, _id: -1 } },
+            { $skip: pagination.skip },
+            { $limit: pagination.limit },
+            {
+              $lookup: {
+                from: Portfolio.collection.name,
+                let: { artistId: "$user._id" },
+                pipeline: [
+                  { $match: { $expr: { $eq: ["$artist", "$$artistId"] } } },
+                  { $sort: { createdAt: -1, _id: -1 } },
+                  {
+                    $project: {
+                      title: 1,
+                      category: 1,
+                      imageUrl: 1,
+                    },
+                  },
+                  { $limit: 3 },
+                ],
+                as: "recentPortfolio",
+              },
+            },
+            {
+              $project: {
+                bio: 1,
+                skills: 1,
+                experience: 1,
+                location: 1,
+                profileImage: 1,
+                software: 1,
+                createdAt: 1,
+                updatedAt: 1,
+                recentPortfolio: 1,
+                user: { _id: "$user._id", name: "$user.name" },
+              },
+            },
+          ],
+        },
+      },
     ]);
+    const artists = result?.artists || [];
+    const total = result?.metadata[0]?.total || 0;
 
     return res.status(200).json(
       new ApiResponse(
@@ -145,9 +204,14 @@ export const getArtistById = async (req, res, next) => {
   try {
     const artist = await ArtistProfile.findById(req.params.id).populate(
       "user",
-      "name",
+      "name role isActive",
     );
-    if (!artist || !artist.user) {
+    if (
+      !artist ||
+      !artist.user ||
+      artist.user.role !== "artist" ||
+      artist.user.isActive === false
+    ) {
       return res.status(404).json({
         success: false,
         message: "Artist profile not found",

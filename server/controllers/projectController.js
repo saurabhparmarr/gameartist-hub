@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Project from "../models/Project.js";
+import User from "../models/User.js";
 import ApiResponse from "../utils/ApiResponse.js";
 
 const editableFields = [
@@ -143,14 +144,48 @@ export const getProjects = async (req, res, next) => {
   }
 
   try {
-    const [projects, total] = await Promise.all([
-      Project.find(filters)
-        .populate("studio", "name")
-        .sort({ createdAt: -1 })
-        .skip(pagination.skip)
-        .limit(pagination.limit),
-      Project.countDocuments(filters),
+    const [result] = await Project.aggregate([
+      { $match: filters },
+      {
+        $lookup: {
+          from: User.collection.name,
+          localField: "studio",
+          foreignField: "_id",
+          as: "studio",
+        },
+      },
+      { $unwind: "$studio" },
+      {
+        $match: {
+          "studio.role": "studio",
+          "studio.isActive": { $ne: false },
+        },
+      },
+      {
+        $facet: {
+          metadata: [{ $count: "total" }],
+          projects: [
+            { $sort: { createdAt: -1, _id: -1 } },
+            { $skip: pagination.skip },
+            { $limit: pagination.limit },
+            {
+              $project: {
+                title: 1,
+                description: 1,
+                skillsRequired: 1,
+                budget: 1,
+                status: 1,
+                createdAt: 1,
+                updatedAt: 1,
+                studio: { _id: "$studio._id", name: "$studio.name" },
+              },
+            },
+          ],
+        },
+      },
     ]);
+    const projects = result?.projects || [];
+    const total = result?.metadata[0]?.total || 0;
 
     return res.status(200).json(
       new ApiResponse(
@@ -193,7 +228,7 @@ export const getMyProjects = async (req, res, next) => {
     const [projects, total] = await Promise.all([
       Project.find(filter)
         .populate("studio", "name")
-        .sort({ createdAt: -1 })
+        .sort({ createdAt: -1, _id: -1 })
         .skip(pagination.skip)
         .limit(pagination.limit),
       Project.countDocuments(filter),
@@ -230,9 +265,14 @@ export const getProjectById = async (req, res, next) => {
   try {
     const project = await Project.findById(req.params.id).populate(
       "studio",
-      "name",
+      "name role isActive",
     );
-    if (!project) {
+    if (
+      !project ||
+      !project.studio ||
+      project.studio.role !== "studio" ||
+      project.studio.isActive === false
+    ) {
       return res
         .status(404)
         .json({ success: false, message: "Project not found" });

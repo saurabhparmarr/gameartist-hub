@@ -147,22 +147,52 @@ export async function sendArtistMessage(receiverId, content) {
   return response.data.data.message;
 }
 
-export async function getConversation(userId, signal) {
-  const response = await api.get(`/messages/${encodeURIComponent(userId)}`, { signal });
-  const result = response.data;
-  if (result.success !== true || !Array.isArray(result.data?.messages)) {
-    throw new Error(getApiMessage(result, "The server returned an unexpected conversation."));
+export async function getConversation(userId, options = {}, signal) {
+  if (typeof options?.addEventListener === "function") {
+    signal = options;
+    options = {};
   }
-  return result.data.messages;
+  const params = { limit: options.limit || 30 };
+  if (options.beforeCreatedAt && options.beforeId) {
+    params.beforeCreatedAt = options.beforeCreatedAt;
+    params.beforeId = options.beforeId;
+  }
+  const response = await api.get(`/messages/${encodeURIComponent(userId)}`, { params, signal });
+  const result = response.data;
+  if (
+    result.success !== true ||
+    !Array.isArray(result.data?.messages)
+  ) {
+    throw new Error(getApiMessage(response, "The server returned an unexpected conversation."));
+  }
+  return {
+    ...result.data,
+    pagination: result.data.pagination || null,
+  };
 }
 
-export async function getMessageConversations(signal) {
-  const response = await api.get("/messages", { signal });
-  const result = response.data;
-  if (result.success !== true || !Array.isArray(result.data?.conversations)) {
-    throw new Error(getApiMessage(result, "The server returned an unexpected conversation list."));
+export async function getMessageConversations(options = {}, signal) {
+  if (typeof options?.addEventListener === "function") {
+    signal = options;
+    options = {};
   }
-  return result.data.conversations;
+  const params = { limit: options.limit || 20 };
+  if (options.beforeCreatedAt && options.beforeUserId) {
+    params.beforeCreatedAt = options.beforeCreatedAt;
+    params.beforeUserId = options.beforeUserId;
+  }
+  const response = await api.get("/messages", { params, signal });
+  const result = response.data;
+  if (
+    result.success !== true ||
+    !Array.isArray(result.data?.conversations)
+  ) {
+    throw new Error(getApiMessage(response, "The server returned an unexpected conversation list."));
+  }
+  return {
+    ...result.data,
+    pagination: result.data.pagination || null,
+  };
 }
 
 export async function getProjectById(projectId, signal) {

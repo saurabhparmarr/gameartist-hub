@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import Studio from "../models/Studio.js";
 import ApiResponse from "../utils/ApiResponse.js";
+import { sanitizeEmail, normalizeString } from "../utils/security.js";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -18,11 +19,16 @@ const getSafeUser = (user) => ({
 export const register = async (req, res, next) => {
   const { name, email, password, role = "artist" } = req.body || {};
 
+  const sanitizedName = normalizeString(name);
+  const sanitizedEmail = sanitizeEmail(email);
+  const sanitizedRole = normalizeString(role);
+
   if (
-    typeof name !== "string" ||
-    !name.trim() ||
-    typeof email !== "string" ||
-    !email.trim() ||
+    typeof sanitizedName !== "string" ||
+    !sanitizedName ||
+    typeof sanitizedEmail !== "string" ||
+    !sanitizedEmail ||
+    typeof password !== "string" ||
     !password
   ) {
     return res.status(400).json({
@@ -31,31 +37,29 @@ export const register = async (req, res, next) => {
     });
   }
 
-  if (!emailPattern.test(email.trim())) {
+  if (!emailPattern.test(sanitizedEmail)) {
     return res.status(400).json({
       success: false,
       message: "Please provide a valid email address",
     });
   }
 
-  if (typeof password !== "string" || password.length < 8) {
+  if (password.length < 8 || password.length > 128) {
     return res.status(400).json({
       success: false,
-      message: "Password must be at least 8 characters long",
+      message: "Password must be between 8 and 128 characters long",
     });
   }
 
-  if (!["artist", "studio"].includes(role)) {
+  if (!["artist", "studio"].includes(sanitizedRole)) {
     return res.status(400).json({
       success: false,
       message: "Role must be artist or studio",
     });
   }
 
-  const normalizedEmail = email.trim().toLowerCase();
-
   try {
-    const existingUser = await User.findOne({ email: normalizedEmail });
+    const existingUser = await User.findOne({ email: sanitizedEmail });
     if (existingUser) {
       return res.status(409).json({
         success: false,
@@ -63,17 +67,17 @@ export const register = async (req, res, next) => {
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
     const user = await User.create({
-      name: name.trim(),
-      email: normalizedEmail,
+      name: sanitizedName,
+      email: sanitizedEmail,
       password: hashedPassword,
-      role,
+      role: sanitizedRole,
     });
 
-    if (role === "studio") {
+    if (sanitizedRole === "studio") {
       try {
-        await Studio.create({ user: user._id, studioName: name.trim() });
+        await Studio.create({ user: user._id, studioName: sanitizedName });
       } catch (error) {
         await User.findByIdAndDelete(user._id);
         throw error;
@@ -98,7 +102,9 @@ export const register = async (req, res, next) => {
 export const login = async (req, res, next) => {
   const { email, password } = req.body || {};
 
-  if (typeof email !== "string" || typeof password !== "string") {
+  const sanitizedEmail = sanitizeEmail(email);
+
+  if (typeof sanitizedEmail !== "string" || !sanitizedEmail || typeof password !== "string" || !password) {
     return res.status(400).json({
       success: false,
       message: "Email and password are required",
@@ -106,9 +112,7 @@ export const login = async (req, res, next) => {
   }
 
   try {
-    const user = await User.findOne({ email: email.trim().toLowerCase() }).select(
-      "+password",
-    );
+    const user = await User.findOne({ email: sanitizedEmail }).select("+password");
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
       return res.status(401).json({
