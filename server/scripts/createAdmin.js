@@ -49,8 +49,12 @@ const createAdmin = async () => {
     input: process.stdin,
     output: process.stdout,
   });
-  const name = (await prompt.question("Admin name: ")).trim();
-  const email = (await prompt.question("Admin email: ")).trim().toLowerCase();
+  const name = (await new Promise((resolve) =>
+    prompt.question("Admin name: ", resolve),
+  )).trim();
+  const email = (await new Promise((resolve) =>
+    prompt.question("Admin email: ", resolve),
+  )).trim().toLowerCase();
   prompt.close();
 
   if (!name || name.length > 120) {

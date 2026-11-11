@@ -1,0 +1,51 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  test-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            server/package-lock.json
+            client/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: server
+        run: npm ci
+
+      - name: Audit backend dependencies
+        working-directory: server
+        run: npm audit --audit-level=moderate
+
+      - name: Run backend tests
+        working-directory: server
+        run: npm test
+
+      - name: Install frontend dependencies
+        working-directory: client
+        run: npm ci
+
+      - name: Audit frontend dependencies
+        working-directory: client
+        run: npm audit --audit-level=moderate
+
+      - name: Run frontend tests
+        working-directory: client
+        run: npm test
+
+      - name: Build frontend
+        working-directory: client
+        run: npm run build
+        env:
+          VITE_API_URL: https://api.example.invalid/api/v1

@@ -37,6 +37,8 @@ const artistProfileSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+artistProfileSchema.index({ createdAt: -1, _id: -1 });
+
 const ArtistProfile = mongoose.model("ArtistProfile", artistProfileSchema);
 
 export default ArtistProfile;

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { ArrowRight, Mail, RefreshCw, Send, UserRound } from "lucide-react";
 import { useSearchParams } from "react-router-dom";
 import EmptyState from "../components/EmptyState.jsx";
@@ -24,14 +24,32 @@ function Messages() {
   const activeName = searchParams.get("name");
   const recentStorageKey = `gameartist-hub-recent-contacts-${user.id}`;
   const [contacts, setContacts] = useState([]);
+  const [conversationContactIds, setConversationContactIds] = useState(new Set());
   const [messages, setMessages] = useState([]);
+  const [messagePagination, setMessagePagination] = useState(null);
+  const [conversationPagination, setConversationPagination] = useState(null);
   const [contactsLoading, setContactsLoading] = useState(true);
   const [conversationLoading, setConversationLoading] = useState(false);
+  const [loadingMoreConversations, setLoadingMoreConversations] = useState(false);
+  const [loadingOlderMessages, setLoadingOlderMessages] = useState(false);
   const [contactsError, setContactsError] = useState("");
   const [conversationError, setConversationError] = useState("");
   const [messageText, setMessageText] = useState("");
   const [sending, setSending] = useState(false);
   const [notice, setNotice] = useState("");
+  const messagesContainerRef = useRef(null);
+  const prependScrollPosition = useRef(null);
+  const conversationRequestId = useRef(0);
+  const activeUserIdRef = useRef(activeUserId);
+  activeUserIdRef.current = activeUserId;
+
+  useLayoutEffect(() => {
+    if (!prependScrollPosition.current || !messagesContainerRef.current) return;
+    const { height, top } = prependScrollPosition.current;
+    messagesContainerRef.current.scrollTop =
+      top + messagesContainerRef.current.scrollHeight - height;
+    prependScrollPosition.current = null;
+  }, [messages]);
 
   const addContact = useCallback((contact) => {
     if (!contact?.id) return;
@@ -50,6 +68,7 @@ function Messages() {
       setContactsError("");
       let knownContacts = [];
       let conversations = [];
+      let summaryPagination = null;
       try {
         if (user.role === "studio") {
           const artists = await getAllArtists();
@@ -76,7 +95,9 @@ function Messages() {
 
       if (isActive) {
         try {
-          conversations = await getMessageConversations();
+          const result = await getMessageConversations({ limit: 20 });
+          conversations = result.conversations;
+          summaryPagination = result.pagination;
         } catch (requestError) {
           if (isActive) setContactsError(getRequestErrorMessage(requestError));
         }
@@ -92,6 +113,8 @@ function Messages() {
             latestMessage: conversation.latestMessage,
             unreadCount: conversation.unreadCount,
           })).filter((contact) => contact.id && contact.id !== "undefined");
+          setConversationContactIds(new Set(conversationContacts.map((contact) => contact.id)));
+          setConversationPagination(summaryPagination);
           const saved = Array.isArray(savedContacts) ? savedContacts : [];
           const suggestedContacts = [...new Map(
             [...saved, ...knownContacts].map((contact) => [contact.id, contact]),
@@ -103,6 +126,8 @@ function Messages() {
           ]);
         } catch {
           setContacts(knownContacts);
+          setConversationContactIds(new Set());
+          setConversationPagination(null);
           localStorage.removeItem(recentStorageKey);
         }
         setContactsLoading(false);
@@ -121,30 +146,127 @@ function Messages() {
 
   const loadConversation = useCallback(async (contact) => {
     if (!contact?.id) return;
+    const requestId = ++conversationRequestId.current;
     setConversationLoading(true);
+    setLoadingOlderMessages(false);
+    prependScrollPosition.current = null;
     setConversationError("");
     try {
       const result = await getConversation(contact.id);
-      setMessages(result);
+      if (
+        requestId !== conversationRequestId.current ||
+        activeUserIdRef.current !== contact.id
+      ) return;
+      setMessages(result.messages);
+      setMessagePagination(result.pagination);
       setContacts((current) => current.map((item) =>
         item.id === contact.id ? { ...item, unreadCount: 0 } : item,
       ));
       addContact(contact);
     } catch (requestError) {
+      if (
+        requestId !== conversationRequestId.current ||
+        activeUserIdRef.current !== contact.id
+      ) return;
       setConversationError(getRequestErrorMessage(requestError));
       setMessages([]);
+      setMessagePagination(null);
     } finally {
-      setConversationLoading(false);
+      if (requestId === conversationRequestId.current) {
+        setConversationLoading(false);
+      }
     }
   }, [addContact]);
 
+  async function loadMoreConversations() {
+    if (!conversationPagination?.hasMore || loadingMoreConversations) return;
+    setLoadingMoreConversations(true);
+    setContactsError("");
+    try {
+      const result = await getMessageConversations({
+        limit: 20,
+        ...conversationPagination.nextCursor,
+      });
+      const nextContacts = result.conversations.map((conversation) => ({
+        id: String(getMessageId(conversation.user)),
+        name: conversation.user?.name || "GameArtist Hub member",
+        role: conversation.user?.role || "member",
+        latestMessage: conversation.latestMessage,
+        unreadCount: conversation.unreadCount,
+      })).filter((contact) => contact.id && contact.id !== "undefined");
+      setContacts((current) => {
+        const alreadyIncluded = new Set(current.map((contact) => contact.id));
+        const existingConversations = current.filter((contact) =>
+          conversationContactIds.has(contact.id),
+        );
+        const suggestions = current.filter((contact) =>
+          !conversationContactIds.has(contact.id),
+        );
+        return [
+          ...existingConversations,
+          ...nextContacts.filter((contact) => !alreadyIncluded.has(contact.id)),
+          ...suggestions,
+        ];
+      });
+      setConversationContactIds((current) => new Set([
+        ...current,
+        ...nextContacts.map((contact) => contact.id),
+      ]));
+      setConversationPagination(result.pagination);
+    } catch (requestError) {
+      setContactsError(getRequestErrorMessage(requestError));
+    } finally {
+      setLoadingMoreConversations(false);
+    }
+  }
+
+  async function loadOlderMessages() {
+    const cursor = messagePagination?.nextCursor;
+    if (!messagePagination?.hasMore || !cursor || loadingOlderMessages || !activeContact) return;
+    const contactId = activeContact.id;
+    const requestId = conversationRequestId.current;
+    if (messagesContainerRef.current) {
+      prependScrollPosition.current = {
+        height: messagesContainerRef.current.scrollHeight,
+        top: messagesContainerRef.current.scrollTop,
+      };
+    }
+    setLoadingOlderMessages(true);
+    setConversationError("");
+    try {
+      const result = await getConversation(contactId, cursor);
+      if (
+        requestId !== conversationRequestId.current ||
+        activeUserIdRef.current !== contactId
+      ) return;
+      setMessages((current) => [...result.messages, ...current]);
+      setMessagePagination(result.pagination);
+    } catch (requestError) {
+      if (
+        requestId !== conversationRequestId.current ||
+        activeUserIdRef.current !== contactId
+      ) return;
+      prependScrollPosition.current = null;
+      setConversationError(getRequestErrorMessage(requestError));
+    } finally {
+      if (requestId === conversationRequestId.current) {
+        setLoadingOlderMessages(false);
+      }
+    }
+  }
+
   useEffect(() => {
+    if (contactsLoading) return;
     if (activeContact) loadConversation(activeContact);
     else {
+      conversationRequestId.current += 1;
+      setConversationLoading(false);
+      setLoadingOlderMessages(false);
+      prependScrollPosition.current = null;
       setMessages([]);
       setConversationError("");
     }
-  }, [activeContact, loadConversation]);
+  }, [activeUserId, contactsLoading, loadConversation]);
 
   async function handleSend(event) {
     event.preventDefault();
@@ -196,26 +318,38 @@ function Messages() {
             <div className="conversation-sidebar-heading"><h2>People</h2><span>{contacts.length}</span></div>
             {contactsError && <ErrorMessage message={contactsError} compact />}
             {contactsLoading ? <p className="conversation-loading">Finding available contacts…</p> : contacts.length ? (
-              <div className="conversation-contact-list">
-                {contacts.map((contact) => (
-                  <button className={`conversation-contact${activeContact?.id === contact.id ? " conversation-contact-active" : ""}`} type="button" key={contact.id} onClick={() => selectContact(contact)}>
-                    <span className="conversation-avatar"><UserRound size={17} /></span>
-                    <span>
-                      <span className="conversation-contact-title">
-                        <strong>{contact.name}</strong>
-                        {contact.unreadCount > 0 && (
-                          <span className="conversation-unread-count" aria-label={`${contact.unreadCount} unread messages`}>
-                            {contact.unreadCount > 99 ? "99+" : contact.unreadCount}
-                          </span>
-                        )}
+              <>
+                <div className="conversation-contact-list">
+                  {contacts.map((contact) => (
+                    <button className={`conversation-contact${activeContact?.id === contact.id ? " conversation-contact-active" : ""}`} type="button" key={contact.id} onClick={() => selectContact(contact)}>
+                      <span className="conversation-avatar"><UserRound size={17} /></span>
+                      <span>
+                        <span className="conversation-contact-title">
+                          <strong>{contact.name}</strong>
+                          {contact.unreadCount > 0 && (
+                            <span className="conversation-unread-count" aria-label={`${contact.unreadCount} unread messages`}>
+                              {contact.unreadCount > 99 ? "99+" : contact.unreadCount}
+                            </span>
+                          )}
+                        </span>
+                        <small>{contact.role === "contact" ? "Recent contact" : contact.role}</small>
+                        {contact.latestMessage?.content && <small>{contact.latestMessage.content}</small>}
                       </span>
-                      <small>{contact.role === "contact" ? "Recent contact" : contact.role}</small>
-                      {contact.latestMessage?.content && <small>{contact.latestMessage.content}</small>}
-                    </span>
-                    <ArrowRight size={14} />
+                      <ArrowRight size={14} />
+                    </button>
+                  ))}
+                </div>
+                {conversationPagination?.hasMore && (
+                  <button
+                    className="button button-outline button-small conversation-load-more"
+                    type="button"
+                    onClick={loadMoreConversations}
+                    disabled={loadingMoreConversations}
+                  >
+                    {loadingMoreConversations ? "Loading…" : "Load more conversations"}
                   </button>
-                ))}
-              </div>
+                )}
+              </>
             ) : !contactsError ? (
               <EmptyState
                 title="No contacts available"
@@ -234,7 +368,17 @@ function Messages() {
                 </header>
                 {conversationError && <ErrorMessage message={conversationError} compact />}
                 {notice && <p className="dashboard-success message-notice" role="status">{notice}</p>}
-                <div className="conversation-messages" aria-live="polite">
+                <div className="conversation-messages" aria-live="polite" ref={messagesContainerRef}>
+                  {messagePagination?.hasMore && (
+                    <button
+                      className="button button-outline button-small conversation-load-more"
+                      type="button"
+                      onClick={loadOlderMessages}
+                      disabled={loadingOlderMessages}
+                    >
+                      {loadingOlderMessages ? "Loading…" : "Load older messages"}
+                    </button>
+                  )}
                   {conversationLoading ? <p className="conversation-loading">Loading conversation…</p> : messages.length ? messages.map((message) => {
                     const senderId = String(getMessageId(message.sender));
                     const isMine = senderId === String(user.id);

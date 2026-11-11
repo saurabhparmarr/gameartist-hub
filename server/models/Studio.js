@@ -31,6 +31,8 @@ const studioSchema = new mongoose.Schema(
   { timestamps: true },
 );
 
+studioSchema.index({ createdAt: -1, _id: -1 });
+
 const Studio = mongoose.model("Studio", studioSchema);
 
 export default Studio;

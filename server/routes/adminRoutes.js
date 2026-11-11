@@ -3,6 +3,7 @@ import {
   deleteProject,
   getArtists,
   getDashboard,
+  getPendingAuditLogs,
   getProjects,
   getStudios,
   getUsers,
@@ -15,6 +16,7 @@ const router = Router();
 
 router.use(authMiddleware, adminMiddleware);
 router.get("/dashboard", getDashboard);
+router.get("/audit-logs/pending", getPendingAuditLogs);
 router.get("/users", getUsers);
 router.patch("/users/:id/status", setUserStatus);
 router.get("/artists", getArtists);
